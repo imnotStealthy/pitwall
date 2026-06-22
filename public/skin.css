@@ -1,0 +1,170 @@
+/* public/skin.css — shared HUD theming + polish for every widget.
+ * Injected automatically by customize.js. Remaps the CSS variables the widgets
+ * already use (--amber/--cyan/--red/--green) per theme, adds glass-panel + glow
+ * tokens, and a universal text-shadow so the HUD reads over bright or dark scenes.
+ * The theme is selected via <html data-skin="…">. A user accent/alert override
+ * (inline style set by customize.js) still wins over these defaults.
+ *
+ * Semantic colours (tire temp bands, shift-light LEDs) are intentionally NOT
+ * themed — they carry meaning and stay constant across skins.
+ */
+
+:root {
+  /* classic (default) — refined amber */
+  --amber: #ffb000; --cyan: #00e5ff; --accent: #ffb000; --accent2: #00e5ff;
+  --red: #ff3b3b; --alert: #ff3b3b; --green: #39ff14;
+  --text: #ffffff; --muted: rgba(255,255,255,.62);
+  --panel-bg: rgba(8,10,14,.52);
+  --panel-bd: 1px solid rgba(255,176,0,.22);
+  --panel-rd: 14px; --panel-bl: 6px;
+  --panel-sh: 0 6px 24px rgba(0,0,0,.45);
+  --glow: 0 0 14px rgba(255,176,0,.45);
+  --ring: rgba(255,176,0,.22);
+}
+html[data-skin="cinematic"] {
+  /* clean film/sci-fi UI — frosted glass, white + ice-cyan, thin */
+  --amber: #e3eeff; --cyan: #5cc8ff; --accent: #5cc8ff; --accent2: #e3eeff;
+  --red: #ff6b6b; --alert: #ff6b6b; --green: #58f5b0;
+  --text: #ffffff; --muted: rgba(220,232,255,.6);
+  --panel-bg: rgba(18,22,30,.36);
+  --panel-bd: 1px solid rgba(255,255,255,.16);
+  --panel-rd: 18px; --panel-bl: 16px;
+  --panel-sh: 0 10px 34px rgba(0,0,0,.5);
+  --glow: 0 0 18px rgba(140,205,255,.35);
+  --ring: rgba(190,215,255,.2);
+}
+html[data-skin="neon"] {
+  /* cyberpunk — magenta + electric cyan, heavy glow */
+  --amber: #ff2bd6; --cyan: #21f3ff; --accent: #ff2bd6; --accent2: #21f3ff;
+  --red: #ff3b6b; --alert: #ff3b6b; --green: #2bff9e;
+  --text: #eafcff; --muted: rgba(140,240,255,.6);
+  --panel-bg: rgba(10,4,18,.5);
+  --panel-bd: 1px solid rgba(33,243,255,.4);
+  --panel-rd: 12px; --panel-bl: 8px;
+  --panel-sh: 0 0 26px rgba(255,43,214,.28);
+  --glow: 0 0 20px rgba(33,243,255,.6);
+  --ring: rgba(33,243,255,.28);
+}
+html[data-skin="carbon"] {
+  /* OEM cockpit — dark carbon, low-key orange, matte */
+  --amber: #ff7a1a; --cyan: #c8ccd2; --accent: #ff7a1a; --accent2: #c8ccd2;
+  --red: #ff5a4d; --alert: #ff5a4d; --green: #57d977;
+  --text: #eceef2; --muted: rgba(236,238,242,.5);
+  --panel-bg: linear-gradient(180deg, rgba(30,32,37,.72), rgba(14,15,18,.72));
+  --panel-bd: 1px solid rgba(255,255,255,.08);
+  --panel-rd: 10px; --panel-bl: 3px;
+  --panel-sh: 0 6px 22px rgba(0,0,0,.6);
+  --glow: 0 0 10px rgba(255,122,26,.4);
+  --ring: rgba(255,122,26,.2);
+}
+
+html[data-skin="wec"] {
+  /* WEC Tech-Deck — data-dense tech look, electric green + hybrid blue, carbon frosted glass */
+  --amber: #00e676; --cyan: #00b0ff; --accent: #00e676; --accent2: #00b0ff;
+  --red: #ff3d00; --alert: #ff3d00; --green: #00e676;
+  --text: #ffffff; --muted: rgba(200,222,255,.6);
+  --panel-bg: rgba(10,13,16,.76);
+  --panel-bd: 1px solid rgba(255,255,255,.12);
+  --panel-rd: 6px; --panel-bl: 12px;
+  --panel-sh: 0 8px 28px rgba(0,0,0,.55);
+  --glow: 0 0 14px rgba(0,230,118,.35);
+  --ring: rgba(0,176,255,.22);
+}
+
+/* Glass panel utility — a widget adds class="glass" to its main container.
+ * backdrop-filter is a no-op over a separate game window but harmless; the
+ * translucent --panel-bg is what produces the frosted-card look everywhere. */
+.glass {
+  background: var(--panel-bg);
+  border: var(--panel-bd);
+  border-radius: var(--panel-rd);
+  box-shadow: var(--panel-sh);
+  -webkit-backdrop-filter: blur(var(--panel-bl));
+  backdrop-filter: blur(var(--panel-bl));
+  padding: 14px 18px;
+}
+
+/* Universal legibility: HTML text gets a soft shadow so values stay readable
+ * over headlights / bright tarmac as well as the night sky. */
+body { text-shadow: 0 1px 3px rgba(0,0,0,.7); }
+.glow { text-shadow: var(--glow), 0 1px 3px rgba(0,0,0,.7); }
+
+/* ============================================================================
+ * CINEMATIC — broadcast / film-grade upgrade (scoped to html[data-skin="cinematic"]).
+ * Pure CSS over the existing widget DOM: premium frosted panels with a luminous
+ * broadcast edge + cut corner, and a coherent ice-cyan palette that recolours the
+ * widgets' hard-coded amber accents. The identity tokens (--cin-*) are independent
+ * of the user accent/alert override, so the look survives a custom data colour.
+ * Nothing here affects classic / neon / carbon / wec — change is fully revertible.
+ * ========================================================================== */
+html[data-skin="cinematic"] {
+  --cin-edge: #8fdcff;                 /* luminous panel edge / signature accent  */
+  --cin-glow: rgba(143,220,255,.55);   /* matching soft glow                      */
+  --cin-line: rgba(150,200,255,.16);   /* hairline borders                        */
+  --cin-label: rgba(202,224,255,.74);  /* captions / units                        */
+}
+
+/* No dark box: the panel fill / drop-shadow / blur are removed so the HUD floats
+ * cleanly over the scene (the dark rectangles behind the widgets are gone).
+ * Legibility comes from the value glow + the universal text-shadow; the light
+ * chip / gear frames further down are kept — they're accents, not a background. */
+html[data-skin="cinematic"] .glass {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+html[data-skin="cinematic"] .glass::before,
+html[data-skin="cinematic"] .glass::after { content: none; }
+
+/* Coherent captions — recolour every widget's hard-coded amber label/unit */
+html[data-skin="cinematic"] .lbl,
+html[data-skin="cinematic"] .label,
+html[data-skin="cinematic"] .gear-lbl,
+html[data-skin="cinematic"] .rpm-unit,
+html[data-skin="cinematic"] .chip .k,
+html[data-skin="cinematic"] #rec {
+  color: var(--cin-label) !important;
+  letter-spacing: 4px;
+}
+
+/* Vehicle card → ice name + thin chip frames */
+html[data-skin="cinematic"] #car { color: var(--cin-edge); text-shadow: 0 0 16px var(--cin-glow); }
+html[data-skin="cinematic"] .chip {
+  border: 1px solid var(--cin-line) !important; border-radius: 8px;
+  background: rgba(255,255,255,.03);
+}
+html[data-skin="cinematic"] .chip .v { color: var(--cin-edge); text-shadow: 0 0 10px var(--cin-glow); }
+
+/* Speedometer (digital style) → ice readout + framed gear box */
+html[data-skin="cinematic"] #digital #speed {
+  color: var(--cin-edge); text-shadow: 0 0 24px var(--cin-glow); letter-spacing: 4px;
+}
+html[data-skin="cinematic"] #digital .ghost { color: rgba(143,220,255,.10); letter-spacing: 4px; }
+html[data-skin="cinematic"] #digital .gear-box {
+  border-color: var(--cin-line);
+  box-shadow: 0 0 18px rgba(0,0,0,.4), inset 0 0 14px var(--cin-glow);
+}
+
+/* G-force grid → ice rings + glowing dot (CSS overrides the SVG presentation attrs) */
+html[data-skin="cinematic"] #meter circle,
+html[data-skin="cinematic"] #meter line { stroke: var(--cin-line); }
+html[data-skin="cinematic"] #meter text { fill: var(--cin-label); }
+html[data-skin="cinematic"] #dot,
+html[data-skin="cinematic"] #dot2 { fill: var(--cin-edge); filter: drop-shadow(0 0 6px var(--cin-glow)); }
+/* drop the dark radar disc / ball backdrop too — keep only the grid lines */
+html[data-skin="cinematic"] #meter circle:first-of-type,
+html[data-skin="cinematic"] #meter2 rect:first-of-type { fill: transparent; }
+
+/* Shift LEDs / arc keep their semantic colours, but glow when lit */
+html[data-skin="cinematic"] .led.on-green,
+html[data-skin="cinematic"] #arc .seg.on-green { box-shadow: 0 0 10px #39ff14; }
+html[data-skin="cinematic"] .led.on-amber,
+html[data-skin="cinematic"] #arc .seg.on-amber { box-shadow: 0 0 10px #ffb000; }
+html[data-skin="cinematic"] .led.on-red,
+html[data-skin="cinematic"] #arc .seg.on-red { box-shadow: 0 0 10px #ff3b3b; }
+
+/* Tire tiles → subtle top highlight for depth (band colours stay semantic) */
+html[data-skin="cinematic"] .tire,
+html[data-skin="cinematic"] .corner { box-shadow: inset 0 1px 0 rgba(255,255,255,.12); }

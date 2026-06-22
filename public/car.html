@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>FH6 Vehicle</title>
+  <style>
+    :root { --amber:#ffb000; --cyan:#00e5ff; }
+    * { box-sizing:border-box; }
+    html,body { margin:0; background:transparent; color:#fff; font-family:'Orbitron',Arial,sans-serif; }
+    #panel { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); width:440px; text-align:center; transition:opacity .3s; }
+    #panel.waiting { opacity:.4; }
+    .lbl { font-size:12px; letter-spacing:5px; color:rgba(255,176,0,.7); margin-bottom:6px; }
+    #car { font-size:28px; font-weight:700; line-height:1.15; color:var(--cyan); text-shadow:0 0 14px rgba(0,229,255,.45); min-height:34px; }
+    .meta { display:flex; justify-content:center; gap:14px; margin-top:14px; }
+    .chip { border:2px solid var(--amber); border-radius:10px; padding:4px 12px; display:flex; flex-direction:column; align-items:center; min-width:62px; }
+    .chip .k { font-size:10px; letter-spacing:2px; color:rgba(255,176,0,.7); }
+    .chip .v { font-size:22px; font-weight:700; color:var(--amber); }
+    #status { font-size:14px; letter-spacing:4px; margin-top:10px; color:var(--amber); }
+    #panel:not(.waiting) #status { display:none; }
+  </style>
+</head>
+<body data-ws-port="__WS_PORT__">
+  <div id="panel" class="waiting glass">
+    <div class="lbl">VEHICLE</div>
+    <div id="car">—</div>
+    <div class="meta" data-field="meta">
+      <div class="chip"><span class="k">CLASS</span><span class="v" id="class">–</span></div>
+      <div class="chip"><span class="k">PI</span><span class="v" id="pi">–</span></div>
+      <div class="chip"><span class="k">TRANS</span><span class="v" id="drive">–</span></div>
+    </div>
+    <div id="status">WAITING...</div>
+  </div>
+  <script src="customize.js"></script>
+  <script>
+    (function(){
+      var WS_PORT=document.body.dataset.wsPort||location.port||'9000';
+      var panel=document.getElementById('panel');
+      var elCar=document.getElementById('car'),elClass=document.getElementById('class'),
+          elPi=document.getElementById('pi'),elDrive=document.getElementById('drive'),
+          elStatus=document.getElementById('status');
+      var CLASSES=['D','C','B','A','S1','S2','X'];   // CarClass 0..6 (7 also tolerated as X)
+      var DRIVE=['FWD','RWD','AWD'];                  // DrivetrainType 0/1/2
+      var cars={}, carsLoaded=false, lastOrdinal=null, lastPi=null, lastClass=null, lastDrive=null;
+
+      // ordinal -> name DB, served statically from public/cars.json
+      fetch('cars.json')
+        .then(function(r){ if(!r.ok) throw new Error('cars.json '+r.status); return r.json(); })
+        .then(function(j){ cars=j||{}; carsLoaded=true; if(lastOrdinal!=null) applyName(lastOrdinal); })
+        .catch(function(e){ console.warn('[car] cars.json load failed:', e); });
+
+      function applyName(ord){
+        var n=cars[String(ord)];
+        // until the DB has loaded, keep the neutral placeholder (no numeric flash)
+        elCar.textContent = n ? n : ((carsLoaded && ord) ? 'Car #'+ord : '—');
+      }
+      function render(d){
+        var ord=d.carOrdinal||0;
+        if(ord){ lastOrdinal=ord; applyName(ord); }
+        // class / PI / drivetrain can read 0 in menus — keep the last real values
+        if(d.carClass!=null && (d.carPerformanceIndex||ord)) lastClass=d.carClass;
+        if(d.carPerformanceIndex) lastPi=d.carPerformanceIndex;
+        if(d.drivetrainType!=null && (d.carPerformanceIndex||ord)) lastDrive=d.drivetrainType;
+        elClass.textContent = (lastClass!=null) ? (CLASSES[lastClass]!=null?CLASSES[lastClass]:(lastClass===7?'X':lastClass)) : '–';
+        elPi.textContent    = (lastPi!=null) ? lastPi : '–';
+        elDrive.textContent = (lastDrive!=null && DRIVE[lastDrive]!=null) ? DRIVE[lastDrive] : '–';
+        if(ord || lastOrdinal){ panel.classList.remove('waiting'); }
+        else { panel.classList.add('waiting'); elStatus.textContent='WAITING...'; }
+      }
+      function connect(){var ws=new WebSocket('ws://localhost:'+WS_PORT);
+        ws.onmessage=function(e){try{render(JSON.parse(e.data));}catch(x){}};
+        ws.onclose=function(){setTimeout(connect,2000);};ws.onerror=function(){ws.close();};}
+      connect();
+    })();
+  </script>
+</body>
+</html>

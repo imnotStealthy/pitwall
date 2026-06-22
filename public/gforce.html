@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>FH6 G-Force</title>
+  <style>
+    :root { --amber:#ffb000; }
+    * { box-sizing:border-box; }
+    html,body { margin:0; background:transparent; color:var(--amber); font-family:'Orbitron',Arial,sans-serif; }
+    #panel { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); transition:opacity .3s; }
+    #panel.waiting { opacity:.4; }
+    .lbl { text-align:center; font-size:13px; letter-spacing:5px; color:rgba(255,176,0,.7); margin-bottom:6px; }
+    .read { display:flex; justify-content:space-between; width:260px; margin:8px auto 0; font-size:14px; }
+    .read .v { font-size:20px; }
+    .gbox { width:230px; height:230px; margin:0 auto; border-radius:10px; }
+    #status { text-align:center; font-size:15px; letter-spacing:4px; margin-top:8px; }
+    #panel:not(.waiting) #status { display:none; }
+  </style>
+</head>
+<body data-ws-port="__WS_PORT__">
+  <div id="panel" class="waiting">
+    <div class="lbl">G-FORCE</div>
+    <div data-style="circle">
+      <svg id="meter" width="260" height="260" viewBox="0 0 260 260">
+        <circle cx="130" cy="130" r="120" fill="rgba(0,0,0,0.45)" stroke="rgba(255,176,0,.5)" stroke-width="2"/>
+        <circle cx="130" cy="130" r="80"  fill="none" stroke="rgba(255,176,0,.25)" stroke-width="1.5"/>
+        <circle cx="130" cy="130" r="40"  fill="none" stroke="rgba(255,176,0,.20)" stroke-width="1.5"/>
+        <line x1="130" y1="10" x2="130" y2="250" stroke="rgba(255,176,0,.20)" stroke-width="1.5"/>
+        <line x1="10" y1="130" x2="250" y2="130" stroke="rgba(255,176,0,.20)" stroke-width="1.5"/>
+        <text x="130" y="24" fill="rgba(255,176,0,.6)" font-size="11" text-anchor="middle">ACCEL</text>
+        <text x="130" y="244" fill="rgba(255,176,0,.6)" font-size="11" text-anchor="middle">BRAKE</text>
+        <circle id="dot" cx="130" cy="130" r="9" fill="var(--amber)" />
+      </svg>
+      <div class="read" data-field="read">
+        <span>LAT <span id="lat" class="v">0.0</span>g</span>
+        <span>LON <span id="lon" class="v">0.0</span>g</span>
+        <span>PEAK <span id="peak" class="v">0.0</span>g</span>
+      </div>
+    </div>
+    <div data-style="ball">
+      <svg id="meter2" class="gbox glass" width="230" height="230" viewBox="0 0 230 230"></svg>
+      <div class="read" data-field="read">
+        <span>LAT <span id="lat2" class="v">0.0</span>g</span>
+        <span>LON <span id="lon2" class="v">0.0</span>g</span>
+        <span>PEAK <span id="peak2" class="v">0.0</span>g</span>
+      </div>
+    </div>
+    <div id="status">WAITING...</div>
+  </div>
+  <script src="customize.js"></script>
+  <script>
+    (function(){
+      var WS_PORT=document.body.dataset.wsPort||location.port||'9000';
+      var SCALE=2.0;        // g at the outer ring edge (120px)
+      var R=120, CX=130, CY=130;
+      var panel=document.getElementById('panel');
+      var dot=document.getElementById('dot');
+      var elLat=document.getElementById('lat'),elLon=document.getElementById('lon'),elPeak=document.getElementById('peak');
+      var elLat2=document.getElementById('lat2'),elLon2=document.getElementById('lon2'),elPeak2=document.getElementById('peak2');
+      var peak=0;
+
+      // build the "ball" variant: square box (230x230) with faint cross + grid and a moving ball
+      var SVGNS='http://www.w3.org/2000/svg', BX=115, BY=115, R2=105;
+      var svg2=document.getElementById('meter2');
+      function svgEl(name,attrs){var e=document.createElementNS(SVGNS,name);for(var k in attrs)e.setAttribute(k,attrs[k]);return e;}
+      // outer frame
+      svg2.appendChild(svgEl('rect',{x:5,y:5,width:220,height:220,rx:8,fill:'rgba(0,0,0,0.45)',stroke:'var(--ring)','stroke-width':1.5}));
+      // grid
+      [BX-R2/2,BX+R2/2].forEach(function(gx){svg2.appendChild(svgEl('line',{x1:gx,y1:10,x2:gx,y2:220,stroke:'var(--ring)','stroke-width':1,opacity:0.4}));});
+      [BY-R2/2,BY+R2/2].forEach(function(gy){svg2.appendChild(svgEl('line',{x1:10,y1:gy,x2:220,y2:gy,stroke:'var(--ring)','stroke-width':1,opacity:0.4}));});
+      // cross
+      svg2.appendChild(svgEl('line',{x1:BX,y1:10,x2:BX,y2:220,stroke:'var(--ring)','stroke-width':1.5}));
+      svg2.appendChild(svgEl('line',{x1:10,y1:BY,x2:220,y2:BY,stroke:'var(--ring)','stroke-width':1.5}));
+      // ball
+      var dot2=svgEl('circle',{id:'dot2',cx:BX,cy:BY,r:10,fill:'var(--amber)'});
+      svg2.appendChild(dot2);
+      function render(d){
+        if(d.isRaceOn===0){panel.classList.add('waiting');document.getElementById('status').textContent='WAITING...';peak=0;return;}
+        panel.classList.remove('waiting');
+        var lat=d.gLat||0, lon=d.gLong||0;
+        // x: lateral (right = +x). y: longitudinal — forward accel pushes dot DOWN, braking UP.
+        var nx=Math.max(-1,Math.min(1,lat/SCALE)), ny=Math.max(-1,Math.min(1,lon/SCALE));
+        var x=CX + nx*R, y=CY + ny*R;
+        dot.setAttribute('cx',x.toFixed(1));
+        dot.setAttribute('cy',y.toFixed(1));
+        dot2.setAttribute('cx',(BX + nx*R2).toFixed(1));
+        dot2.setAttribute('cy',(BY + ny*R2).toFixed(1));
+        var mag=Math.sqrt(lat*lat+lon*lon);
+        if(mag>peak) peak=mag;
+        var sl=lat.toFixed(1), sn=lon.toFixed(1), sp=peak.toFixed(1);
+        elLat.textContent=sl; elLon.textContent=sn; elPeak.textContent=sp;
+        elLat2.textContent=sl; elLon2.textContent=sn; elPeak2.textContent=sp;
+      }
+      function connect(){var ws=new WebSocket('ws://localhost:'+WS_PORT);
+        ws.onmessage=function(e){try{render(JSON.parse(e.data));}catch(x){}};
+        ws.onclose=function(){setTimeout(connect,2000);};ws.onerror=function(){ws.close();};}
+      connect();
+    })();
+  </script>
+</body>
+</html>

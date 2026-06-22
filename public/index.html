@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FH6 Telemetry</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="widget.css" />
+</head>
+<body data-ws-port="__WS_PORT__">
+  <div id="widget" class="widget waiting">
+    <div class="row row-primary">
+      <div class="gear-box">
+        <span class="label">GEAR</span>
+        <span id="gear" class="gear">–</span>
+      </div>
+      <div class="speed-box">
+        <span id="speed" class="speed">0</span>
+        <span class="unit" id="speed-unit">km/h</span>
+      </div>
+      <div class="rpm-box">
+        <div class="rpm-track"><div id="rpm-bar" class="rpm-bar"></div></div>
+        <span id="rpm" class="rpm-text">0</span>
+      </div>
+    </div>
+
+    <div class="row row-pedals" data-field="pedals">
+      <div class="pedal">
+        <span class="label">THR</span>
+        <div class="pedal-track"><div id="throttle-bar" class="pedal-bar throttle"></div></div>
+      </div>
+      <div class="pedal">
+        <span class="label">BRK</span>
+        <div class="pedal-track"><div id="brake-bar" class="pedal-bar brake"></div></div>
+      </div>
+    </div>
+
+    <div class="row row-tires" data-field="tires">
+      <span class="label">TIRES</span>
+      <span id="tire-fl" class="tire">FL</span>
+      <span id="tire-fr" class="tire">FR</span>
+      <span id="tire-rl" class="tire">RL</span>
+      <span id="tire-rr" class="tire">RR</span>
+    </div>
+
+    <div class="row row-lap" data-field="lap">
+      <span>Lap <span id="lap">--</span></span>
+      <span>Cur <span id="current-lap">--</span></span>
+      <span>Best <span id="best-lap">--</span></span>
+      <span class="pos">P<span id="position">-</span></span>
+    </div>
+
+    <div id="status" class="status">WAITING…</div>
+  </div>
+
+  <script src="customize.js"></script>
+  <script src="widget.js"></script>
+</body>
+</html>

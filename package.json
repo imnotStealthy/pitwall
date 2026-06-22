@@ -1,0 +1,47 @@
+{
+  "name": "fh6-obs-widget",
+  "version": "1.0.0",
+  "description": "pitwall — local Forza Horizon 6 telemetry overlay: OBS Browser Source + transparent desktop HUD with cinematic skins. Vanilla JS + Node, no framework.",
+  "author": "StealthyLabs",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/imnotStealthy/pitwall.git" },
+  "homepage": "https://github.com/imnotStealthy/pitwall#readme",
+  "bugs": { "url": "https://github.com/imnotStealthy/pitwall/issues" },
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "overlay": "electron electron/main.cjs",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --win"
+  },
+  "dependencies": {
+    "dotenv": "^16.0.0",
+    "ws": "^8.0.0"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "eu.stealthylabs.fh6overlay",
+    "productName": "FH6 Overlay",
+    "asar": false,
+    "files": [
+      "electron/**/*",
+      "!electron/assets/make-icon.cjs",
+      "src/**/*",
+      "public/**/*",
+      "package.json"
+    ],
+    "directories": { "output": "dist" },
+    "win": {
+      "target": "portable",
+      "icon": "electron/assets/icon.ico"
+    },
+    "portable": {
+      "artifactName": "FH6-Overlay-${version}-portable.exe"
+    }
+  }
+}

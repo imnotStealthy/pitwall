@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'" />
+  <title>FH6 Overlay — Settings</title>
+  <style>
+    :root { --amber:#ffb000; --cyan:#00e5ff; --bg:#15171c; --panel:#1d2026; --line:#2c2f37; --txt:#e7e9ee; --dim:#9aa0ab; }
+    * { box-sizing:border-box; }
+    html,body { margin:0; height:100%; background:var(--bg); color:var(--txt); font-family:'Segoe UI',Arial,sans-serif; font-size:14px; }
+    header { display:flex; align-items:center; gap:10px; padding:14px 18px 10px; }
+    header h1 { font-size:16px; margin:0; letter-spacing:.5px; }
+    header h1 .b { color:var(--amber); }
+    .pill { margin-left:auto; font-size:12px; padding:3px 10px; border-radius:20px; border:1px solid var(--line); color:var(--dim); }
+    .pill.live { color:#2ecc40; border-color:#2ecc40; }
+    .tabs { display:flex; gap:4px; padding:0 18px; border-bottom:1px solid var(--line); }
+    .tab { padding:9px 16px; cursor:pointer; color:var(--dim); border-bottom:2px solid transparent; user-select:none; }
+    .tab.active { color:var(--cyan); border-bottom-color:var(--cyan); }
+    main { padding:16px 18px; overflow:auto; height:calc(100% - 96px); }
+    .view { display:none; } .view.active { display:block; }
+    .sect { margin-bottom:18px; }
+    .sect h2 { font-size:12px; text-transform:uppercase; letter-spacing:2px; color:var(--dim); margin:0 0 8px; }
+    .row { display:flex; align-items:center; gap:10px; padding:7px 10px; border:1px solid var(--line); border-radius:8px; background:var(--panel); margin-bottom:6px; }
+    .row label { flex:1; cursor:pointer; }
+    .row .sub { color:var(--dim); font-size:12px; }
+    input[type=checkbox] { width:17px; height:17px; accent-color:var(--cyan); cursor:pointer; }
+    input[type=range] { accent-color:var(--cyan); width:150px; }
+    input[type=color] { width:38px; height:26px; background:none; border:1px solid var(--line); border-radius:4px; cursor:pointer; padding:0; }
+    select, input[type=number] { background:var(--bg); color:var(--txt); border:1px solid var(--line); border-radius:6px; padding:4px 8px; }
+    input[type=number] { width:92px; }
+    button { background:var(--panel); color:var(--txt); border:1px solid var(--line); border-radius:6px; padding:5px 10px; cursor:pointer; font-size:13px; }
+    button:hover { border-color:var(--cyan); color:var(--cyan); }
+    .hint { color:var(--dim); font-size:12px; line-height:1.5; margin-top:6px; }
+    code { background:#000; color:var(--amber); padding:1px 6px; border-radius:4px; font-size:12px; }
+    .wgroup { border:1px solid var(--line); border-radius:8px; padding:8px 10px; margin-bottom:8px; background:var(--panel); }
+    .wgroup-h { font-weight:600; margin-bottom:6px; color:var(--cyan); }
+    .ctl { display:flex; align-items:center; gap:10px; padding:3px 0; }
+    .ctl > label:first-child { width:90px; flex:none; color:var(--dim); }
+    .obs-row { display:grid; grid-template-columns:1fr auto auto auto; align-items:center; gap:8px; }
+    .obs-row .name { font-weight:600; } .obs-row .size { color:var(--dim); font-size:12px; }
+    .url { font-family:Consolas,monospace; font-size:11px; color:var(--cyan); word-break:break-all; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>FH6 <span class="b">Overlay</span></h1>
+    <span id="forza" class="pill">Forza: …</span>
+  </header>
+  <div class="tabs">
+    <div class="tab active" data-view="ingame">In-game</div>
+    <div class="tab" data-view="appearance">Appearance</div>
+    <div class="tab" data-view="obs">OBS</div>
+  </div>
+
+  <main>
+    <!-- IN-GAME -->
+    <section id="view-ingame" class="view active">
+      <div class="sect">
+        <h2>Overlay widgets</h2>
+        <div id="widgets"></div>
+        <div class="hint">Checked widgets appear on screen over the game. Forza must run in <b>Borderless</b> mode.</div>
+      </div>
+      <div class="sect">
+        <h2>Behaviour</h2>
+        <div class="row"><input type="checkbox" id="gate"><label for="gate">Show only when Forza is active <span class="sub">— hide on alt-tab</span></label></div>
+        <div class="row"><input type="checkbox" id="locked"><label for="locked">Lock overlays <span class="sub">— clicks pass through (uncheck to drag/reposition)</span></label></div>
+        <div class="row"><input type="checkbox" id="hidden"><label for="hidden">Hide all overlays</label></div>
+        <div class="row"><input type="checkbox" id="autostart"><label for="autostart">Launch at Windows startup</label></div>
+        <div class="row"><label>Widget positions</label><button id="reset">Reset positions</button></div>
+        <div class="row"><label>Apply file edits <span class="sub">— reload widgets from disk (skin.css, layouts)</span></label><button id="reload">Reload overlays</button></div>
+        <div class="hint">Shortcuts: <code>Ctrl+Alt+L</code> lock/unlock · <code>Ctrl+Alt+H</code> hide/show.</div>
+      </div>
+      <div class="sect">
+        <h2>Connection</h2>
+        <div class="row"><label>Listen IP <span class="sub">— where the server receives UDP</span></label>
+          <select id="udpHost"><option value="0.0.0.0">0.0.0.0 (all)</option><option value="127.0.0.1">127.0.0.1</option><option value="localhost">localhost</option></select></div>
+        <div class="row"><label>UDP port <span class="sub">— match FH6 Data Out</span></label><input type="number" id="udpPort" min="1" max="65535"></div>
+        <div class="row"><label>HTTP / WS port <span class="sub">— widgets &amp; OBS</span></label><input type="number" id="httpPort" min="1" max="65535"></div>
+        <div class="hint">In FH6: <b>SETTINGS → Data Out → ON</b>, IP <code>127.0.0.1</code>, Port = your UDP port. Changing
+          ports restarts the server and reloads the overlays — re-copy your OBS URLs from the OBS tab.</div>
+      </div>
+    </section>
+
+    <!-- APPEARANCE -->
+    <section id="view-appearance" class="view">
+      <div class="sect">
+        <h2>Theme (all widgets)</h2>
+        <div class="row"><label>Preset <span class="sub">— coordinated look</span></label><select id="skin"></select></div>
+        <div class="row"><label>Accent color</label><input type="color" id="accent"><button id="accent-def">Default</button></div>
+        <div class="row"><label>Alert color</label><input type="color" id="alert"><button id="alert-def">Default</button></div>
+        <div class="row"><label>Background opacity</label><input type="range" id="bg" min="0" max="1" step="0.05"><span id="bg-v" class="sub"></span></div>
+        <div class="row"><label>Font</label><select id="font"></select></div>
+        <div class="row"><label>Speed units</label><select id="u-speed"><option value="kmh">km/h</option><option value="mph">mph</option></select>
+          <label style="flex:none">Temp</label><select id="u-temp"><option value="c">°C</option><option value="f">°F</option></select></div>
+      </div>
+      <div class="sect">
+        <h2>Per-widget</h2>
+        <div id="wappear"></div>
+        <div class="hint">Size, opacity and which fields show — independently per widget. Changes preview live.</div>
+      </div>
+    </section>
+
+    <!-- OBS -->
+    <section id="view-obs" class="view">
+      <div class="sect">
+        <h2>OBS Browser Sources</h2>
+        <div class="hint" style="margin-bottom:10px">
+          Add a <b>Browser Source</b> per widget with the URL below — it already carries your Appearance
+          settings, so OBS looks identical to the overlay. Set the width/height shown; background is transparent.
+        </div>
+        <div id="obs"></div>
+        <div class="hint" style="margin-top:10px">Optional Custom CSS: <code>body { background-color: rgba(0,0,0,0); margin: 0; }</code></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    var S = null, built = false;
+    var $ = function (id) { return document.getElementById(id); };
+    var activeIsNot = function (el) { return document.activeElement !== el; };  // don't clobber in-progress input
+
+    document.querySelectorAll('.tab').forEach(function (t) {
+      t.addEventListener('click', function () {
+        document.querySelectorAll('.tab').forEach(function (x) { x.classList.remove('active'); });
+        document.querySelectorAll('.view').forEach(function (x) { x.classList.remove('active'); });
+        t.classList.add('active');
+        $('view-' + t.dataset.view).classList.add('active');
+      });
+    });
+
+    // ---- one-time DOM build (dynamic lists) ----
+    function buildOnce(state) {
+      // in-game widget toggles
+      var wbox = $('widgets');
+      state.widgets.forEach(function (w) {
+        var row = document.createElement('div'); row.className = 'row';
+        var cb = document.createElement('input'); cb.type = 'checkbox'; cb.id = 'w-' + w.id;
+        cb.addEventListener('change', function () { window.fh6.setWidget(w.id, cb.checked); });
+        var lb = document.createElement('label'); lb.htmlFor = cb.id; lb.textContent = w.label;
+        row.appendChild(cb); row.appendChild(lb); wbox.appendChild(row);
+      });
+
+      // font + theme options
+      state.fonts.forEach(function (f) { var o = document.createElement('option'); o.value = f; o.textContent = f; $('font').appendChild(o); });
+      state.skins.forEach(function (s) { var o = document.createElement('option'); o.value = s; o.textContent = s.charAt(0).toUpperCase() + s.slice(1); $('skin').appendChild(o); });
+
+      // per-widget appearance groups
+      var abox = $('wappear');
+      state.widgets.forEach(function (w) {
+        var g = document.createElement('div'); g.className = 'wgroup'; g.dataset.id = w.id;
+        g.innerHTML = '<div class="wgroup-h">' + w.label + '</div>';
+        var scaleSel = document.createElement('select'); scaleSel.dataset.k = 'scale';
+        state.scales.forEach(function (v) { var o = document.createElement('option'); o.value = v; o.textContent = Math.round(v * 100) + '%'; scaleSel.appendChild(o); });
+        scaleSel.addEventListener('change', function () { window.fh6.setWidgetAppearance(w.id, { scale: parseFloat(scaleSel.value) }); });
+        g.appendChild(ctl('Size', scaleSel));
+        if (w.styles && w.styles.length) {
+          var styleSel = document.createElement('select'); styleSel.dataset.k = 'style';
+          w.styles.forEach(function (s) { var o = document.createElement('option'); o.value = s; o.textContent = s.charAt(0).toUpperCase() + s.slice(1); styleSel.appendChild(o); });
+          styleSel.addEventListener('change', function () { window.fh6.setWidgetAppearance(w.id, { style: styleSel.value }); });
+          g.appendChild(ctl('Style', styleSel));
+        }
+        var opR = document.createElement('input'); opR.type = 'range'; opR.min = '0.1'; opR.max = '1'; opR.step = '0.05'; opR.dataset.k = 'op';
+        opR.addEventListener('input', function () { window.fh6.setWidgetAppearance(w.id, { op: parseFloat(opR.value) }); });
+        g.appendChild(ctl('Opacity', opR));
+        Object.keys(w.fields).forEach(function (key) {
+          var cb = document.createElement('input'); cb.type = 'checkbox'; cb.dataset.k = 'f:' + key; cb.id = 'wf-' + w.id + '-' + key;
+          cb.addEventListener('change', function () { window.fh6.setWidgetAppearance(w.id, { field: { key: key, on: cb.checked } }); });
+          var lb = document.createElement('label'); lb.htmlFor = cb.id; lb.textContent = w.fields[key]; lb.style.flex = 'none';
+          var r = document.createElement('div'); r.className = 'ctl'; r.appendChild(cb); r.appendChild(lb);
+          g.appendChild(r);
+        });
+        abox.appendChild(g);
+      });
+
+      // OBS rows (static — built once)
+      var obox = $('obs');
+      state.widgets.forEach(function (w) {
+        var row = document.createElement('div'); row.className = 'row obs-row'; row.dataset.id = w.id;
+        var meta = document.createElement('div'); meta.innerHTML = '<div class="name">' + w.label + '</div><div class="url"></div>';
+        var size = document.createElement('div'); size.className = 'size'; size.textContent = w.w + '×' + w.h;
+        var copy = document.createElement('button'); copy.textContent = 'Copy';
+        copy.addEventListener('click', function () { var u = row.querySelector('.url').textContent; window.fh6.copyText(u); copy.textContent = 'Copied'; setTimeout(function () { copy.textContent = 'Copy'; }, 1200); });
+        var open = document.createElement('button'); open.textContent = 'Open';
+        open.addEventListener('click', function () { window.fh6.openExternal(row.querySelector('.url').textContent); });
+        row.appendChild(meta); row.appendChild(size); row.appendChild(copy); row.appendChild(open);
+        obox.appendChild(row);
+      });
+
+      // static control wiring (fire-and-forget; the pushed state re-renders once)
+      $('gate').addEventListener('change', function (e) { window.fh6.setGate(e.target.checked); });
+      $('locked').addEventListener('change', function (e) { window.fh6.setLocked(e.target.checked); });
+      $('hidden').addEventListener('change', function (e) { window.fh6.setHidden(e.target.checked); });
+      $('autostart').addEventListener('change', function (e) { window.fh6.setAutostart(e.target.checked); });
+      $('reset').addEventListener('click', function () { window.fh6.resetPositions(); });
+      $('reload').addEventListener('click', function () { window.fh6.reloadOverlays(); });
+      $('accent').addEventListener('input', function (e) { window.fh6.setAppearance({ accent: e.target.value }); });
+      $('alert').addEventListener('input', function (e) { window.fh6.setAppearance({ alert: e.target.value }); });
+      $('accent-def').addEventListener('click', function () { window.fh6.setAppearance({ accent: '' }); });
+      $('alert-def').addEventListener('click', function () { window.fh6.setAppearance({ alert: '' }); });
+      $('bg').addEventListener('input', function (e) { window.fh6.setAppearance({ bg: parseFloat(e.target.value) }); });
+      $('font').addEventListener('change', function (e) { window.fh6.setAppearance({ font: e.target.value }); });
+      $('skin').addEventListener('change', function (e) { window.fh6.setAppearance({ skin: e.target.value }); });
+      $('u-speed').addEventListener('change', function (e) { window.fh6.setAppearance({ units: { speed: e.target.value } }); });
+      $('u-temp').addEventListener('change', function (e) { window.fh6.setAppearance({ units: { temp: e.target.value } }); });
+      $('udpHost').addEventListener('change', function (e) { window.fh6.setNetwork({ udpHost: e.target.value }); });
+      $('udpPort').addEventListener('change', function (e) { var n = parseInt(e.target.value, 10); if (n >= 1 && n <= 65535) window.fh6.setNetwork({ udpPort: n }); });
+      $('httpPort').addEventListener('change', function (e) { var n = parseInt(e.target.value, 10); if (n >= 1 && n <= 65535) window.fh6.setNetwork({ httpPort: n }); });
+      built = true;
+    }
+    function ctl(label, el) { var r = document.createElement('div'); r.className = 'ctl'; var l = document.createElement('label'); l.textContent = label; r.appendChild(l); r.appendChild(el); return r; }
+
+    // ---- value updates (don't disrupt the control the user is touching) ----
+    function setVal(el, v) { if (el && activeIsNot(el) && el.value !== String(v)) el.value = v; }
+    function setChk(el, v) { if (el && activeIsNot(el)) el.checked = v; }
+
+    function update(state) {
+      var f = $('forza'); f.className = 'pill' + (state.gameActive ? ' live' : ''); f.textContent = state.gameActive ? 'Forza: detected' : 'Forza: not in foreground';
+      setChk($('gate'), state.gateToGame); setChk($('locked'), state.locked);
+      setChk($('hidden'), state.hidden); setChk($('autostart'), state.autostart);
+      var a = state.appearance;
+      setVal($('accent'), a.accent || '#ffb000'); setVal($('alert'), a.alert || '#ff4444');
+      setVal($('bg'), a.bg); $('bg-v').textContent = Math.round(a.bg * 100) + '%';
+      setVal($('font'), a.font); setVal($('skin'), a.skin);
+      setVal($('u-speed'), a.units.speed); setVal($('u-temp'), a.units.temp);
+      setVal($('udpHost'), state.network.udpHost); setVal($('udpPort'), state.network.udpPort); setVal($('httpPort'), state.network.httpPort);
+      state.widgets.forEach(function (w) {
+        setChk($('w-' + w.id), w.enabled);
+        var g = document.querySelector('.wgroup[data-id="' + w.id + '"]'); if (!g) return;
+        setVal(g.querySelector('[data-k="scale"]'), w.appearance.scale);
+        var stSel = g.querySelector('[data-k="style"]'); if (stSel) setVal(stSel, w.appearance.style || (w.styles[0] || ''));
+        setVal(g.querySelector('[data-k="op"]'), w.appearance.op);
+        Object.keys(w.fields).forEach(function (key) {
+          setChk(g.querySelector('[data-k="f:' + key + '"]'), w.appearance.fields[key] !== false);
+        });
+        var row = document.querySelector('.obs-row[data-id="' + w.id + '"]');
+        if (row) { var u = row.querySelector('.url'); if (u.textContent !== w.url) u.textContent = w.url; }
+      });
+    }
+
+    function apply(state) { S = state; if (!built) buildOnce(state); update(state); }
+    window.fh6.onState(apply);
+    window.fh6.getState().then(apply);
+  </script>
+</body>
+</html>

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>FH6 Shift Light</title>
+  <style>
+    :root { --amber:#ffb000; }
+    * { box-sizing:border-box; }
+    html,body { margin:0; background:transparent; color:var(--amber); font-family:'Orbitron',Arial,sans-serif; }
+    #panel { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); width:560px; display:flex; flex-direction:column; align-items:center; gap:10px; transition:opacity .3s; }
+    #panel.waiting { opacity:.4; }
+    #leds { display:flex; gap:4px; width:100%; }
+    .led { flex:1; height:26px; border-radius:4px; background:rgba(255,255,255,.10); transition:background .04s linear; }
+    .led.on-green  { background:#39ff14; }
+    .led.on-amber  { background:#ffb000; }
+    .led.on-red    { background:#ff3b3b; }
+    #panel.shift #leds .led { background:#fff; }
+    .info { display:flex; align-items:baseline; gap:18px; }
+    #rpm { font-size:46px; font-weight:700; }
+    .rpm-unit { font-size:14px; color:rgba(255,176,0,.6); }
+    #gear { font-size:46px; font-weight:700; min-width:50px; text-align:center; }
+    .gear-lbl { font-size:12px; letter-spacing:2px; color:rgba(255,176,0,.6); }
+    #shiftMsg, #shiftMsg2 { font-size:24px; font-weight:700; letter-spacing:6px; color:#ff3b3b; visibility:hidden; }
+    #panel.shift #shiftMsg, #panel.shift #shiftMsg2 { visibility:visible; }
+    #arc .seg { fill:rgba(255,255,255,.10); transition:fill .04s linear; }
+    #arc .seg.on-green { fill:#39ff14; }
+    #arc .seg.on-amber { fill:#ffb000; }
+    #arc .seg.on-red   { fill:#ff3b3b; }
+    #panel.shift #arc .seg { fill:#fff; }
+    #rpm2 { font-size:46px; font-weight:700; }
+    #gear2 { font-size:46px; font-weight:700; min-width:50px; text-align:center; }
+    #status { font-size:14px; letter-spacing:4px; }
+    #panel:not(.waiting) #status { display:none; }
+  </style>
+</head>
+<body data-ws-port="__WS_PORT__">
+  <div id="panel" class="waiting glass">
+    <div data-style="bar" style="display:flex;flex-direction:column;align-items:center;gap:10px;width:100%">
+      <div id="leds"></div>
+      <div class="info" data-field="rpm">
+        <div><span id="rpm">0</span> <span class="rpm-unit">RPM</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center"><span class="gear-lbl">GEAR</span><span id="gear">N</span></div>
+      </div>
+      <div id="shiftMsg">▲ SHIFT ▲</div>
+    </div>
+    <div data-style="arc" style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%">
+      <svg id="arc" viewBox="0 0 520 150" width="520" height="150" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div class="info" data-field="rpm" style="margin-top:-44px">
+        <div><span id="rpm2">0</span> <span class="rpm-unit">RPM</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center"><span class="gear-lbl">GEAR</span><span id="gear2">N</span></div>
+      </div>
+      <div id="shiftMsg2">▲ SHIFT ▲</div>
+    </div>
+    <div id="status">WAITING...</div>
+  </div>
+  <script src="customize.js"></script>
+  <script>
+    (function(){
+      var WS_PORT=document.body.dataset.wsPort||location.port||'9000';
+      var SEG=18, SHIFT_RATIO=0.95;   // flash when within 5% of max rpm
+      var panel=document.getElementById('panel'),leds=document.getElementById('leds');
+      var elRpm=document.getElementById('rpm'),elGear=document.getElementById('gear');
+      var elRpm2=document.getElementById('rpm2'),elGear2=document.getElementById('gear2');
+      var cells=[];
+      for(var i=0;i<SEG;i++){var d=document.createElement('div');d.className='led';leds.appendChild(d);cells.push(d);}
+      // build arc segments once: SEG rounded rects spaced evenly over a 180deg arc (left 180deg -> right 0deg)
+      var NS='http://www.w3.org/2000/svg', arc=document.getElementById('arc');
+      var segs=[], cx=260, cy=140, R=120, sw=14, sh=22;
+      for(var i=0;i<SEG;i++){
+        var ang=Math.PI-(i/(SEG-1))*Math.PI;           // 180deg .. 0deg
+        var x=cx+R*Math.cos(ang), y=cy-R*Math.sin(ang);
+        var r=document.createElementNS(NS,'rect');
+        r.setAttribute('class','seg');
+        r.setAttribute('width',sw); r.setAttribute('height',sh);
+        r.setAttribute('rx',5); r.setAttribute('ry',5);
+        r.setAttribute('x',x-sw/2); r.setAttribute('y',y-sh/2);
+        r.setAttribute('transform','rotate('+(90-ang*180/Math.PI)+' '+x+' '+y+')');
+        arc.appendChild(r); segs.push(r);
+      }
+      function render(d){
+        if(d.isRaceOn===0){panel.classList.add('waiting');document.getElementById('status').textContent='WAITING...';return;}
+        panel.classList.remove('waiting');
+        var idle=d.rpmIdle||0, max=d.rpmMax||1;
+        // usable band from idle to max so LEDs sweep the meaningful range
+        var ratio=Math.max(0,Math.min((d.rpm-idle)/Math.max(max-idle,1),1));
+        var lit=Math.round(ratio*SEG);
+        for(var i=0;i<SEG;i++){
+          var on='';
+          if(i<lit){ var p=i/SEG; on= p<0.6?' on-green':(p<0.85?' on-amber':' on-red'); }
+          cells[i].className='led'+on;
+          segs[i].setAttribute('class','seg'+on);
+        }
+        var rpmTxt=Math.round(d.rpm), gearTxt=d.gear===0?'R':String(d.gear);
+        elRpm.textContent=rpmTxt; elGear.textContent=gearTxt;
+        elRpm2.textContent=rpmTxt; elGear2.textContent=gearTxt;
+        panel.classList.toggle('shift', d.rpm/max>=SHIFT_RATIO);
+      }
+      function connect(){var ws=new WebSocket('ws://localhost:'+WS_PORT);
+        ws.onmessage=function(e){try{render(JSON.parse(e.data));}catch(x){}};
+        ws.onclose=function(){setTimeout(connect,2000);};ws.onerror=function(){ws.close();};}
+      connect();
+    })();
+  </script>
+</body>
+</html>

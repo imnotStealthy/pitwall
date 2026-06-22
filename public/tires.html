@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>FH6 Tires</title>
+  <style>
+    :root { --amber:#ffb000; }
+    * { box-sizing:border-box; }
+    html,body { margin:0; background:transparent; color:#fff; font-family:'Orbitron',Arial,sans-serif; }
+    #panel { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); transition:opacity .3s; }
+    #panel.waiting { opacity:.4; }
+    .lbl { text-align:center; font-size:13px; letter-spacing:5px; color:var(--amber); opacity:.7; margin-bottom:8px; }
+    .grid { display:grid; grid-template-columns:repeat(2,110px); grid-template-rows:repeat(2,110px); gap:14px; }
+    .tire { border-radius:12px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+            background:#444; border:4px solid transparent; transition:background .15s, border-color .08s; }
+    .tire .pos { font-size:12px; opacity:.7; letter-spacing:2px; }
+    .tire .temp { font-size:34px; font-weight:700; }
+    .tire .deg { font-size:13px; opacity:.7; }
+    /* temperature bands */
+    .cold { background:#2b6cff; }
+    .ok   { background:#2ecc40; color:#062; }
+    .warm { background:#ffd000; color:#5a4500; }
+    .hot  { background:#ff3b3b; }
+    /* grip loss: border lights up when combined slip > 1 */
+    .slip { border-color:var(--text) !important; box-shadow:0 0 18px rgba(255,255,255,.7); }
+    #status { text-align:center; font-size:15px; letter-spacing:4px; margin-top:10px; color:var(--amber); }
+    #panel:not(.waiting) #status { display:none; }
+    /* corners style: top-down car with tiles at each corner */
+    .car { position:relative; width:240px; height:200px; margin:0 auto; }
+    .car .body { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+                 width:64px; height:120px; border-radius:22px; background:var(--panel-bg);
+                 border:2px solid var(--ring); }
+    .corner { position:absolute; width:58px; height:58px; border-radius:10px;
+              display:flex; flex-direction:column; align-items:center; justify-content:center;
+              background:#444; border:3px solid transparent; transition:background .15s, border-color .08s; }
+    .corner.tl { top:0; left:0; }
+    .corner.tr { top:0; right:0; }
+    .corner.bl { bottom:0; left:0; }
+    .corner.br { bottom:0; right:0; }
+    .corner .temp { font-size:22px; font-weight:700; }
+    .corner .deg { font-size:11px; opacity:.7; }
+  </style>
+</head>
+<body data-ws-port="__WS_PORT__">
+  <div id="panel" class="waiting glass">
+    <div class="lbl">TIRES — TEMP / GRIP</div>
+    <div data-style="grid">
+      <div class="grid">
+        <div class="tire" id="t-FL"><span class="pos">FL</span><span class="temp">--</span><span class="deg">°C</span></div>
+        <div class="tire" id="t-FR"><span class="pos">FR</span><span class="temp">--</span><span class="deg">°C</span></div>
+        <div class="tire" id="t-RL"><span class="pos">RL</span><span class="temp">--</span><span class="deg">°C</span></div>
+        <div class="tire" id="t-RR"><span class="pos">RR</span><span class="temp">--</span><span class="deg">°C</span></div>
+      </div>
+    </div>
+    <div data-style="corners">
+      <div class="car">
+        <div class="body"></div>
+        <div class="corner tl" id="t2-FL"><span class="temp">--</span><span class="deg">°C</span></div>
+        <div class="corner tr" id="t2-FR"><span class="temp">--</span><span class="deg">°C</span></div>
+        <div class="corner bl" id="t2-RL"><span class="temp">--</span><span class="deg">°C</span></div>
+        <div class="corner br" id="t2-RR"><span class="temp">--</span><span class="deg">°C</span></div>
+      </div>
+    </div>
+    <div id="status">WAITING...</div>
+  </div>
+  <script src="customize.js"></script>
+  <script>
+    (function(){
+      var WS_PORT=document.body.dataset.wsPort||location.port||'9000';
+      var panel=document.getElementById('panel');
+      var boxes={FL:document.getElementById('t-FL'),FR:document.getElementById('t-FR'),RL:document.getElementById('t-RL'),RR:document.getElementById('t-RR')};
+      var corners={FL:document.getElementById('t2-FL'),FR:document.getElementById('t2-FR'),RL:document.getElementById('t2-RL'),RR:document.getElementById('t2-RR')};
+      var cornerPos={FL:'tl',FR:'tr',RL:'bl',RR:'br'};
+      function band(t){ return t<60?'cold':(t<90?'ok':(t<110?'warm':'hot')); }  // classify on °C (semantic)
+      function setTire(k,temp,slip){
+        var bandCls=band(temp), slipCls=Math.abs(slip)>1?' slip':'';
+        var f=window.UNITS&&window.UNITS.temp==='f';
+        var txt=Math.round(f?temp*9/5+32:temp);
+        var b=boxes[k];
+        b.className='tire '+bandCls+slipCls;
+        b.querySelector('.temp').textContent=txt;
+        var c=corners[k];
+        c.className='corner '+cornerPos[k]+' '+bandCls+slipCls;
+        c.querySelector('.temp').textContent=txt;
+      }
+      function render(d){
+        var degU=(window.UNITS&&window.UNITS.temp==='f')?'°F':'°C';
+        panel.querySelectorAll('.deg').forEach(function(e){ e.textContent=degU; });  // correct unit even while WAITING
+        if(d.isRaceOn===0){panel.classList.add('waiting');document.getElementById('status').textContent='WAITING...';return;}
+        panel.classList.remove('waiting');
+        ['FL','FR','RL','RR'].forEach(function(k){ setTire(k, d.tireTemp[k], d.tireSlip[k]); });
+      }
+      function connect(){var ws=new WebSocket('ws://localhost:'+WS_PORT);
+        ws.onmessage=function(e){try{render(JSON.parse(e.data));}catch(x){}};
+        ws.onclose=function(){setTimeout(connect,2000);};ws.onerror=function(){ws.close();};}
+      connect();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,85 @@
+:root {
+  --cyan: #00e5ff;
+  --alert: #ff4444;
+  --panel: rgba(0, 0, 0, 0.65);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: transparent;
+  margin: 0;
+  font-family: 'Orbitron', monospace;
+  color: #fff;
+}
+
+.widget {
+  position: fixed;
+  bottom: 12px;
+  left: 12px;
+  width: 400px;
+  background: var(--panel);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: opacity 0.3s ease;
+}
+
+.widget.waiting { opacity: 0.45; }
+
+.label {
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: #9aa;
+}
+
+.row { display: flex; align-items: center; gap: 12px; }
+
+/* primary row: gear / speed / rpm */
+.row-primary { justify-content: space-between; }
+
+.gear-box { display: flex; flex-direction: column; align-items: center; min-width: 44px; }
+.gear { font-size: 34px; font-weight: 700; color: var(--cyan); line-height: 1; }
+
+.speed-box { display: flex; align-items: baseline; gap: 4px; }
+.speed { font-size: 30px; font-weight: 700; color: var(--cyan); }
+.unit { font-size: 11px; color: #9aa; }
+
+.rpm-box { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.rpm-track {
+  width: 100%; height: 10px; background: rgba(255, 255, 255, 0.12);
+  border-radius: 5px; overflow: hidden;
+}
+.rpm-bar { height: 100%; width: 0%; background: #2ecc40; transition: width 0.05s linear, background 0.1s linear; }
+.rpm-text { font-size: 11px; text-align: right; color: #9aa; }
+
+/* pedals */
+.row-pedals { gap: 16px; }
+.pedal { flex: 1; display: flex; align-items: center; gap: 6px; }
+.pedal-track {
+  flex: 1; height: 8px; background: rgba(255, 255, 255, 0.12);
+  border-radius: 4px; overflow: hidden;
+}
+.pedal-bar { height: 100%; width: 0%; transition: width 0.05s linear; }
+.pedal-bar.throttle { background: var(--cyan); }
+.pedal-bar.brake { background: var(--alert); }
+
+/* tires */
+.row-tires { gap: 8px; }
+.tire {
+  font-size: 11px; font-weight: 700; padding: 2px 6px;
+  border-radius: 4px; background: #555; min-width: 26px; text-align: center;
+}
+.tire.cold { background: #2b6cff; }
+.tire.ok { background: #2ecc40; color: #000; }
+.tire.warm { background: #ffd000; color: #000; }
+.tire.hot { background: var(--alert); }
+
+/* lap row */
+.row-lap { font-size: 12px; justify-content: space-between; color: #ddd; }
+.row-lap .pos { color: var(--cyan); font-weight: 700; }
+
+.status { font-size: 12px; letter-spacing: 2px; color: var(--cyan); text-align: center; }
+.widget:not(.waiting) .status { display: none; }

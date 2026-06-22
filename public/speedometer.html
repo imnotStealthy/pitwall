@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FH6 Speedometer</title>
+  <style>
+    /* Seven-segment digital font */
+    @font-face {
+      font-family: 'DSEG7';
+      src: url('https://cdn.jsdelivr.net/npm/dseg@0.46.0/fonts/DSEG7-Classic/DSEG7Classic-Bold.woff2') format('woff2');
+      font-weight: bold;
+      font-display: swap;
+    }
+
+    :root { --amber: #ffb000; --dim: rgba(255, 176, 0, 0.14); }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: transparent; color: var(--amber); font-family: 'DSEG7', monospace; }
+
+    #panel {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      display: flex; flex-direction: column; align-items: center;
+      transition: opacity .3s ease;
+    }
+    #panel.waiting { opacity: .4; }
+
+    /* --- Digital style --- */
+    #digital { display: flex; flex-direction: column; align-items: center; }
+    .speed-wrap { position: relative; line-height: 1; }
+    .ghost, #speed {
+      font-family: 'DSEG7', monospace;   /* keep the seven-segment LCD look even under a custom global font */
+      font-size: 130px; font-weight: bold; letter-spacing: 4px;
+      text-shadow: 0 0 18px rgba(255, 176, 0, 0.55);
+    }
+    .ghost { color: var(--dim); text-shadow: none; }
+    #speed { position: absolute; top: 0; right: 0; }
+    .unit { font-family: Arial, sans-serif; font-size: 22px; letter-spacing: 6px; margin-top: 4px; }
+    .gear-box {
+      display: flex; flex-direction: column; align-items: center;
+      border: 3px solid var(--amber); border-radius: 12px;
+      padding: 4px 22px 8px; margin-bottom: 16px;
+      box-shadow: 0 0 16px rgba(255, 176, 0, .35);
+    }
+    .gear-lbl { font-family: Arial, sans-serif; font-size: 14px; color: rgba(255,176,0,.7); letter-spacing: 4px; }
+    #gear { font-family: 'Orbitron', Arial, sans-serif; font-size: 80px; font-weight: bold; line-height: .95; text-shadow: 0 0 16px rgba(255,176,0,.6); min-width: 64px; text-align: center; }
+
+    /* --- Analog / Cinematic styles --- */
+    #analog text, #cinematic text { font-family: 'Orbitron', Arial, sans-serif; }
+
+    #status { font-family: 'Orbitron', Arial, sans-serif; font-size: 16px; letter-spacing: 4px; margin-top: 10px; }
+    #panel:not(.waiting) #status { display: none; }
+  </style>
+</head>
+<body data-ws-port="__WS_PORT__">
+  <div id="panel" class="waiting">
+    <!-- Digital (default) -->
+    <div id="digital" data-style="digital">
+      <div class="gear-box" data-field="gear">
+        <span class="gear-lbl">GEAR</span>
+        <span id="gear">N</span>
+      </div>
+      <div class="speed-wrap">
+        <span class="ghost">888</span>
+        <span id="speed">0</span>
+      </div>
+      <div class="unit" id="speed-unit">KM/H</div>
+    </div>
+
+    <!-- Analog dial -->
+    <div id="analog" data-style="analog">
+      <svg width="300" height="300" viewBox="0 0 300 300">
+        <circle cx="150" cy="150" r="140" fill="rgba(0,0,0,0.30)" stroke="var(--amber)" stroke-opacity="0.25" stroke-width="2" />
+        <g id="ticks"></g>
+        <line id="needle" x1="150" y1="150" x2="150" y2="40" stroke="var(--amber)" stroke-width="4" stroke-linecap="round" />
+        <circle cx="150" cy="150" r="9" fill="var(--amber)" />
+        <text id="a-gear" x="150" y="118" text-anchor="middle" font-size="38" font-weight="700" fill="var(--amber)" data-field="gear">N</text>
+        <text id="a-speed" x="150" y="188" text-anchor="middle" font-size="46" font-weight="700" fill="#fff">0</text>
+        <text id="a-unit" x="150" y="212" text-anchor="middle" font-family="Arial" font-size="13" fill="rgba(255,176,0,0.75)" letter-spacing="2">KM/H</text>
+      </svg>
+    </div>
+
+    <!-- Cinematic dial: gradient redline arc + eased glowing needle + glass core -->
+    <div id="cinematic" data-style="cinematic">
+      <svg width="320" height="320" viewBox="0 0 320 320">
+        <defs>
+          <linearGradient id="spd-grad" x1="0" y1="1" x2="1" y2="0">
+            <stop offset="0" stop-color="#2ecc40" /><stop offset="0.62" stop-color="#ffd000" /><stop offset="1" stop-color="#ff3b3b" />
+          </linearGradient>
+          <filter id="spd-glow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="3.5" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+        </defs>
+        <circle cx="160" cy="160" r="150" fill="rgba(0,0,0,0.32)" stroke="var(--accent)" stroke-opacity="0.14" stroke-width="2" />
+        <path id="c-track" fill="none" stroke="var(--ring)" stroke-width="10" stroke-linecap="round" />
+        <path id="c-prog" fill="none" stroke="url(#spd-grad)" stroke-width="10" stroke-linecap="round" pathLength="1000" stroke-dasharray="1000" stroke-dashoffset="1000" filter="url(#spd-glow)" />
+        <g id="c-ticks"></g>
+        <line id="c-needle" stroke="var(--text)" stroke-width="3" stroke-linecap="round" filter="url(#spd-glow)" />
+        <circle cx="160" cy="160" r="58" fill="rgba(0,0,0,0.5)" stroke="var(--accent)" stroke-opacity="0.3" stroke-width="1.5" />
+        <text id="c-gear" x="160" y="138" text-anchor="middle" font-size="22" font-weight="700" fill="var(--accent)" data-field="gear">N</text>
+        <text id="c-speed" x="160" y="180" text-anchor="middle" font-size="54" font-weight="700" fill="var(--text)">0</text>
+        <text id="c-unit" x="160" y="202" text-anchor="middle" font-family="Arial" font-size="12" fill="var(--muted)" letter-spacing="2">KM/H</text>
+      </svg>
+    </div>
+
+    <div id="status">WAITING...</div>
+  </div>
+
+  <script src="customize.js"></script>
+  <script>
+    (function () {
+      var WS_PORT = document.body.dataset.wsPort || location.port || '9000';
+      var SVGNS = 'http://www.w3.org/2000/svg';
+      var panel = document.getElementById('panel');
+      var elSpeed = document.getElementById('speed');
+      var elUnit = document.getElementById('speed-unit');
+      var elGear = document.getElementById('gear');
+      var elStatus = document.getElementById('status');
+      var ticks = document.getElementById('ticks');
+      var needle = document.getElementById('needle');
+      var aGear = document.getElementById('a-gear');
+      var aSpeed = document.getElementById('a-speed');
+      var aUnit = document.getElementById('a-unit');
+
+      // analog gauge geometry: 270° sweep from 135° (lower-left) clockwise to 405° (lower-right)
+      var CX = 150, CY = 150, R = 120, START = 135, SWEEP = 270, D2R = Math.PI / 180;
+      var curMax = 320, curIsMph = !!(window.UNITS && window.UNITS.speed === 'mph');
+
+      function arc(v, max, r) {
+        var a = (START + (v / max) * SWEEP) * D2R;
+        return { x: CX + r * Math.cos(a), y: CY + r * Math.sin(a), a: a };
+      }
+      function buildGauge(mph) {
+        var max = mph ? 200 : 320, minor = 20, major = 40;
+        curMax = max;
+        ticks.textContent = '';
+        for (var v = 0; v <= max; v += minor) {
+          var isMajor = v % major === 0;
+          var po = arc(v, max, R), pi = arc(v, max, R - (isMajor ? 20 : 11));
+          var ln = document.createElementNS(SVGNS, 'line');
+          ln.setAttribute('x1', po.x.toFixed(1)); ln.setAttribute('y1', po.y.toFixed(1));
+          ln.setAttribute('x2', pi.x.toFixed(1)); ln.setAttribute('y2', pi.y.toFixed(1));
+          ln.setAttribute('stroke', 'var(--amber)');
+          ln.setAttribute('stroke-width', isMajor ? '3' : '1.5');
+          ln.setAttribute('stroke-opacity', isMajor ? '0.95' : '0.45');
+          ticks.appendChild(ln);
+          if (isMajor) {
+            var pl = arc(v, max, R - 36);
+            var t = document.createElementNS(SVGNS, 'text');
+            t.setAttribute('x', pl.x.toFixed(1)); t.setAttribute('y', (pl.y + 5).toFixed(1));
+            t.setAttribute('text-anchor', 'middle'); t.setAttribute('font-family', 'Arial');
+            t.setAttribute('font-size', '13'); t.setAttribute('fill', 'rgba(255,176,0,0.8)');
+            t.textContent = v;
+            ticks.appendChild(t);
+          }
+        }
+        setNeedle(0);
+      }
+      function setNeedle(v) {
+        var ratio = Math.max(0, Math.min(v / curMax, 1));
+        var a = (START + ratio * SWEEP) * D2R;
+        needle.setAttribute('x1', (CX - 16 * Math.cos(a)).toFixed(1));
+        needle.setAttribute('y1', (CY - 16 * Math.sin(a)).toFixed(1));
+        needle.setAttribute('x2', (CX + (R - 18) * Math.cos(a)).toFixed(1));
+        needle.setAttribute('y2', (CY + (R - 18) * Math.sin(a)).toFixed(1));
+      }
+      buildGauge(curIsMph);
+
+      // --- Cinematic dial: gradient redline arc + eased glowing needle ---
+      var CCX = 160, CCY = 160, CR = 130;
+      var cTrack = document.getElementById('c-track'), cProg = document.getElementById('c-prog');
+      var cTicks = document.getElementById('c-ticks'), cNeedle = document.getElementById('c-needle');
+      var cGear = document.getElementById('c-gear'), cSpeed = document.getElementById('c-speed'), cUnit = document.getElementById('c-unit');
+      var shown = 0, target = 0;
+      function polar(r, deg) { var a = deg * D2R; return { x: CCX + r * Math.cos(a), y: CCY + r * Math.sin(a) }; }
+      function arcPath(r, d0, d1) {
+        var p0 = polar(r, d0), p1 = polar(r, d1), large = (d1 - d0) > 180 ? 1 : 0;
+        return 'M ' + p0.x.toFixed(1) + ' ' + p0.y.toFixed(1) + ' A ' + r + ' ' + r + ' 0 ' + large + ' 1 ' + p1.x.toFixed(1) + ' ' + p1.y.toFixed(1);
+      }
+      function buildCinematic() {
+        var path = arcPath(CR, START, START + SWEEP);
+        cTrack.setAttribute('d', path); cProg.setAttribute('d', path);
+        cTicks.textContent = '';
+        var step = curMax / 8;
+        for (var i = 0; i <= 8; i++) {
+          var deg = START + (i / 8) * SWEEP, po = polar(CR - 16, deg), pi = polar(CR - 26, deg);
+          var ln = document.createElementNS(SVGNS, 'line');
+          ln.setAttribute('x1', po.x.toFixed(1)); ln.setAttribute('y1', po.y.toFixed(1));
+          ln.setAttribute('x2', pi.x.toFixed(1)); ln.setAttribute('y2', pi.y.toFixed(1));
+          ln.setAttribute('stroke', 'var(--muted)'); ln.setAttribute('stroke-width', '2');
+          cTicks.appendChild(ln);
+          var pl = polar(CR - 40, deg), t = document.createElementNS(SVGNS, 'text');
+          t.setAttribute('x', pl.x.toFixed(1)); t.setAttribute('y', (pl.y + 4).toFixed(1));
+          t.setAttribute('text-anchor', 'middle'); t.setAttribute('font-family', 'Arial'); t.setAttribute('font-size', '11');
+          t.setAttribute('fill', 'var(--muted)'); t.textContent = Math.round(i * step);
+          cTicks.appendChild(t);
+        }
+      }
+      function drawCinematic(v) {
+        var ratio = Math.max(0, Math.min(v / curMax, 1));
+        cProg.setAttribute('stroke-dashoffset', (1000 * (1 - ratio)).toFixed(1));
+        var deg = START + ratio * SWEEP, tip = polar(CR - 16, deg), ta = (deg + 180) * D2R;
+        cNeedle.setAttribute('x1', (CCX + 18 * Math.cos(ta)).toFixed(1));
+        cNeedle.setAttribute('y1', (CCY + 18 * Math.sin(ta)).toFixed(1));
+        cNeedle.setAttribute('x2', tip.x.toFixed(1)); cNeedle.setAttribute('y2', tip.y.toFixed(1));
+        cSpeed.textContent = Math.round(v);
+      }
+      buildCinematic();
+      (function ease() {                      // smooth needle motion for the cinematic dial
+        shown += (target - shown) * 0.18;
+        if (Math.abs(target - shown) < 0.1) shown = target;
+        drawCinematic(shown);
+        requestAnimationFrame(ease);
+      })();
+
+      // live re-apply (e.g. switching units in settings while the game is idle / no packets):
+      // refresh the unit labels and rebuild the gauges immediately, keeping the needle.
+      window.__onCustomize = function () {
+        var mph = !!(window.UNITS && window.UNITS.speed === 'mph');
+        var u = mph ? 'MPH' : 'KM/H';
+        elUnit.textContent = u; aUnit.textContent = u; cUnit.textContent = u;
+        if (mph !== curIsMph) { buildGauge(mph); buildCinematic(); curIsMph = mph; setNeedle(parseInt(aSpeed.textContent, 10) || 0); }
+      };
+
+      function render(d) {
+        var mph = !!(window.UNITS && window.UNITS.speed === 'mph');
+        var unit = mph ? 'MPH' : 'KM/H';
+        elUnit.textContent = unit; aUnit.textContent = unit; cUnit.textContent = unit;  // correct even while WAITING
+        if (mph !== curIsMph) { buildGauge(mph); buildCinematic(); curIsMph = mph; }
+        if (d.isRaceOn === 0) {
+          panel.classList.add('waiting');
+          elStatus.textContent = 'WAITING...';
+          return;
+        }
+        panel.classList.remove('waiting');
+        var v = Math.max(0, Math.round(mph ? d.speedMph : d.speedKmh));
+        var g = d.gear === 0 ? 'R' : String(d.gear);
+        elSpeed.textContent = String(v).padStart(3, ' ');
+        elGear.textContent = g;
+        aSpeed.textContent = v; aGear.textContent = g;
+        setNeedle(v);
+        target = v; cGear.textContent = g;     // cinematic: the rAF loop eases the needle/arc
+      }
+
+      function connect() {
+        var ws = new WebSocket('ws://localhost:' + WS_PORT);
+        ws.onmessage = function (e) { try { render(JSON.parse(e.data)); } catch (err) {} };
+        ws.onclose = function () { setTimeout(connect, 2000); };
+        ws.onerror = function () { ws.close(); };
+      }
+      connect();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>FH6 Lap Delta</title>
+  <style>
+    :root { --amber:#ffb000; --green:#39ff14; --red:#ff3b3b; }
+    * { box-sizing:border-box; }
+    html,body { margin:0; background:transparent; color:var(--amber); font-family:'Orbitron',Arial,sans-serif; }
+    #panel { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); width:380px; display:flex; flex-direction:column; align-items:center; transition:opacity .3s; }
+    #panel.waiting { opacity:.4; }
+    .lbl { font-size:13px; letter-spacing:5px; color:rgba(255,176,0,.7); }
+    #delta { font-size:96px; font-weight:700; line-height:1; text-shadow:0 0 18px currentColor; }
+    #delta.ahead { color:var(--green); }
+    #delta.behind { color:var(--red); }
+    #delta.neutral { color:var(--amber); }
+    #bar { width:100%; height:10px; margin-top:10px; background:rgba(255,255,255,.12); border-radius:5px; position:relative; overflow:hidden; }
+    #barfill { position:absolute; top:0; bottom:0; left:50%; width:0; background:var(--amber); transition:all .08s linear; }
+    .mid { position:absolute; left:50%; top:0; bottom:0; width:2px; background:rgba(255,255,255,.5); transform:translateX(-1px); }
+    .foot { margin-top:12px; font-size:14px; }
+    .foot .v { font-size:20px; }
+    #status { font-size:15px; letter-spacing:4px; margin-top:8px; }
+    #panel:not(.waiting) #status { display:none; }
+    #rec { font-size:16px; color:rgba(255,176,0,.6); margin-top:8px; }
+  </style>
+</head>
+<body data-ws-port="__WS_PORT__">
+  <div id="panel" class="waiting glass">
+    <div class="lbl">DELTA vs BEST</div>
+    <div id="delta" class="neutral">--.--</div>
+    <div id="bar" data-field="bar"><div class="mid"></div><div id="barfill"></div></div>
+    <div class="foot" data-field="best">BEST <span id="best" class="v">--:--.-</span></div>
+    <div id="rec"></div>
+    <div id="status">WAITING...</div>
+  </div>
+  <script src="customize.js"></script>
+  <script>
+    (function(){
+      var WS_PORT=document.body.dataset.wsPort||location.port||'9000';
+      var panel=document.getElementById('panel');
+      var elD=document.getElementById('delta'),elBest=document.getElementById('best');
+      var elFill=document.getElementById('barfill'),elRec=document.getElementById('rec');
+      function fmtLap(s){ if(!s||s<=0) return '--:--.-'; var m=Math.floor(s/60),sec=(s%60).toFixed(1); if(sec<10)sec='0'+sec; return m+':'+sec; }
+      function render(d){
+        if(d.isRaceOn===0){panel.classList.add('waiting');document.getElementById('status').textContent='WAITING...';return;}
+        panel.classList.remove('waiting');
+        elBest.textContent=fmtLap(d.lapBest);
+        if(!d.lapHasReference || d.lapDelta===null||d.lapDelta===undefined){
+          elD.textContent='--.--'; elD.className='neutral';
+          elFill.style.width='0'; elRec.textContent='Drive a clean lap to set the reference…';
+          return;
+        }
+        elRec.textContent='';
+        var dl=d.lapDelta;
+        var sign=dl>0?'+':(dl<0?'-':'');
+        elD.textContent=sign+Math.abs(dl).toFixed(2);
+        elD.className = Math.abs(dl)<0.03?'neutral':(dl<0?'ahead':'behind');
+        // bar: clamp to +/-2s, grows left (ahead) or right (behind) from centre
+        var clamped=Math.max(-2,Math.min(2,dl));
+        var w=Math.abs(clamped)/2*50; // % of half-width
+        if(dl<0){ elFill.style.left=(50-w)+'%'; elFill.style.background='var(--green)'; }
+        else    { elFill.style.left='50%';      elFill.style.background='var(--red)'; }
+        elFill.style.width=w+'%';
+      }
+      function connect(){var ws=new WebSocket('ws://localhost:'+WS_PORT);
+        ws.onmessage=function(e){try{render(JSON.parse(e.data));}catch(x){}};
+        ws.onclose=function(){setTimeout(connect,2000);};ws.onerror=function(){ws.close();};}
+      connect();
+    })();
+  </script>
+</body>
+</html>
